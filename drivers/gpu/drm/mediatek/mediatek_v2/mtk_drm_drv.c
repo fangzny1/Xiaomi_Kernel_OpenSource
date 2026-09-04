@@ -5452,7 +5452,9 @@ static int mtk_drm_get_segment_id(struct platform_device *pdev,
 	kfree(efuse_buf);
 #endif
 
+#if IS_ENABLED(CONFIG_MTK_DEVINFO)
 done:
+#endif
 	DDPINFO("%s, segment_id: %d", __func__, segment_id);
 
 	private->seg_id = segment_id;
