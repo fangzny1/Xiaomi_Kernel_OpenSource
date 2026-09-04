@@ -1,4 +1,5 @@
 subdir-ccflags-y += -Werror
+subdir-ccflags-y += -Wno-error=frame-larger-than
 
 mediatek-drm-y := mtk_drm_drv.o \
 		  mtk_disp_tdshp.o \
