@@ -276,7 +276,7 @@ void rpmb_req_copy_data_for_hmac(u8 *buf, struct rpmb_frame *f)
 	buf += size;
 }
 
-static int hmac_sha256(const char *keybytes, u32 klen, const char *str,
+static __maybe_unused int hmac_sha256(const char *keybytes, u32 klen, const char *str,
 			size_t len, u8 *hmac)
 {
 	struct shash_desc *shash;
@@ -356,7 +356,7 @@ static int rpmb_cal_hmac(struct rpmb_frame *frame, int blk_cnt,
 }
 #endif
 
-static void rpmb_dump_frame(u8 *data_frame)
+static __maybe_unused void rpmb_dump_frame(u8 *data_frame)
 {
 	MSG(DBG_INFO, "mac, frame[196] = 0x%x\n", data_frame[196]);
 	MSG(DBG_INFO, "mac, frame[197] = 0x%x\n", data_frame[197]);
@@ -381,7 +381,7 @@ static void rpmb_dump_frame(u8 *data_frame)
 	MSG(DBG_INFO, "type, frame[511] = 0x%x\n", data_frame[511]);
 }
 
-static struct rpmb_frame *rpmb_alloc_frames(unsigned int cnt)
+static __maybe_unused struct rpmb_frame *rpmb_alloc_frames(unsigned int cnt)
 {
 	return kzalloc(sizeof(struct rpmb_frame) * cnt, 0);
 }
@@ -2471,7 +2471,7 @@ static int rpmb_thread(void *context)
 }
 #endif
 
-static int rpmb_open(struct inode *pinode, struct file *pfile)
+static __maybe_unused int rpmb_open(struct inode *pinode, struct file *pfile)
 {
 	return 0;
 }
@@ -2659,7 +2659,7 @@ end:
 }
 #endif
 
-static int rpmb_close(struct inode *pinode, struct file *pfile)
+static __maybe_unused int rpmb_close(struct inode *pinode, struct file *pfile)
 {
 	int ret = 0;
 
