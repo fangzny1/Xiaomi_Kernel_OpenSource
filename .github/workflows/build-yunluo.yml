@@ -1,0 +1,49 @@
+name: Build yunluo KernelSU Droidspaces
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'arch/arm64/configs/**'
+      - 'drivers/**'
+      - 'include/linux/sched.h'
+      - 'include/linux/sched/user.h'
+      - 'KernelSU-Next/**'
+      - '.github/workflows/build-yunluo.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache flex libelf-dev libssl-dev python3
+
+      - name: Fetch Android Clang
+        run: |
+          mkdir -p "$HOME/tc"
+          curl -fsSL "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-build-2023/clang-r487747c.tar.gz" -o "$HOME/tc/clang.tar.gz"
+          tar -xf "$HOME/tc/clang.tar.gz" -C "$HOME/tc"
+          "$HOME/tc/bin/clang" --version
+
+      - name: Configure and build
+        run: |
+          export PATH="$HOME/tc/bin:$PATH"
+          make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out yunluo_defconfig
+          make -j"$(nproc)" ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out Image.gz modules
+
+      - name: Package kernel artifacts
+        run: |
+          mkdir package
+          cp out/arch/arm64/boot/Image.gz package/kernel-Image.gz
+          cp out/System.map out/Module.symvers package/
+          find out -type f -name '*.ko' -exec cp --parents '{}' package/ \;
+          tar -czf yunluo-kernel-ksu-droidspaces.tar.gz -C package .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yunluo-kernel-ksu-droidspaces
+          path: yunluo-kernel-ksu-droidspaces.tar.gz
