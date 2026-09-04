@@ -33,6 +33,9 @@ jobs:
         run: |
           export PATH="$HOME/tc/bin:$PATH"
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 O=out yunluo_defconfig
+          scripts/config --file out/.config --enable ANDROID_KABI_RESERVE
+          grep -E '^(CONFIG_(ANDROID_KABI_RESERVE|SYSVIPC|POSIX_MQUEUE|PID_NS|IPC_NS|CGROUP_PIDS|CGROUP_DEVICE|USER_NS|KSU))=' out/.config
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 O=out olddefconfig
           make -j"$(nproc)" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 O=out Image.gz modules
 
       - name: Package kernel artifacts
