@@ -20,7 +20,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache flex libelf-dev libssl-dev python3
+          sudo apt-get install -y bc bison build-essential ccache flex gcc-aarch64-linux-gnu libelf-dev libssl-dev python3
 
       - name: Fetch Android Clang
         run: |
@@ -32,8 +32,8 @@ jobs:
       - name: Configure and build
         run: |
           export PATH="$HOME/tc/bin:$PATH"
-          make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out yunluo_defconfig
-          make -j"$(nproc)" ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out Image.gz modules
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 O=out yunluo_defconfig
+          make -j"$(nproc)" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 O=out Image.gz modules
 
       - name: Package kernel artifacts
         run: |
