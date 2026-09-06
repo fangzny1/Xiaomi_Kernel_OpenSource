@@ -45,6 +45,9 @@ CONFIG_KSU=y
 CONFIG_LTO_NONE=y
 # device base config points UNUSED_KSYMS_WHITELIST at a path that does not exist here
 # CONFIG_TRIM_UNUSED_KSYMS is not set
+# shallow clone has no tags for LOCALVERSION_AUTO
+CONFIG_LOCALVERSION="-ksu-droidspaces"
+# CONFIG_LOCALVERSION_AUTO is not set
 
 # Intentionally NOT enabled:
 #   CONFIG_USER_NS — adds cred->user_ns, changing struct cred layout and breaking

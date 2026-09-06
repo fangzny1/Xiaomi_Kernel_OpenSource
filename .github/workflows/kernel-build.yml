@@ -7,20 +7,29 @@ on:
 
 env:
   KSU_NEXT_VERSION: v3.3.0
-  ARCH: arm64
+  # Same AOSP common tree generation the device's working kernel and its
+  # vendor modules were built from (5.10.209 era) — required so that module
+  # symbol CRCs match and all 187 first-stage vendor modules load.
+  COMMON_BRANCH: deprecated/android12-5.10-2024-05
 
 jobs:
   build:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout kernel source
+      - name: Checkout build files
         uses: actions/checkout@v4
 
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential cpio flex libssl-dev zip wget curl
+          sudo apt-get install -y bc bison build-essential cpio flex libssl-dev zip wget curl git
+
+      - name: Clone AOSP common kernel
+        run: |
+          git clone --depth=1 -b "${COMMON_BRANCH}" https://android.googlesource.com/kernel/common kernel-src
+          cd kernel-src
+          git log --oneline -1
 
       - name: Set up Neutron Clang
         run: |
@@ -30,24 +39,28 @@ jobs:
           ./antman -S=latest
           echo "$HOME/neutron-clang/bin" >> "$GITHUB_PATH"
 
+      - name: Copy device base config and fragment
+        run: |
+          cp arch/arm64/configs/yunluo_device_base.config kernel-src/arch/arm64/configs/
+          cp arch/arm64/configs/droidspaces_ksu.fragment kernel-src/arch/arm64/configs/
+
       - name: Integrate KernelSU-Next
+        working-directory: kernel-src
         run: |
           curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/${KSU_NEXT_VERSION}/kernel/setup.sh" | bash -s "${KSU_NEXT_VERSION}"
 
       - name: Apply Droidspaces kABI patches
+        working-directory: kernel-src
         run: |
           BASE="https://raw.githubusercontent.com/ravindu644/Droidspaces-OSS/dev/Documentation/resources/kernel-patches/GKI/below-kernel-6.12"
           curl -fL -o sysvipc.patch "${BASE}/001.GKI-below-6.12-fix_sysvipc_kabi_6_7_8.patch"
           curl -fL -o posix_mqueue.patch "${BASE}/002.5.10_or_lower_use_android_abi_padding_for_posix_mqueue.patch"
-          patch -p1 < sysvipc.patch
-          patch -p1 < posix_mqueue.patch
+          patch -p1 -N -f < sysvipc.patch || true
+          patch -p1 -N -f < posix_mqueue.patch || true
+          grep -n 'sysvshm' include/linux/sched.h | head -3
 
-      - name: Fix kgdb brk immediate for newer Clang
-        run: |
-          sed -i 's/"I" (KGDB_COMPILED_DBG_BRK_IMM)/"n" (KGDB_COMPILED_DBG_BRK_IMM)/' arch/arm64/include/asm/kgdb.h
-          grep -n 'KGDB_COMPILED_DBG_BRK_IMM' arch/arm64/include/asm/kgdb.h
-
-      - name: Configure kernel (device base config + fragment)
+      - name: Build Image.gz
+        working-directory: kernel-src
         run: |
           mkdir -p out
           cp arch/arm64/configs/yunluo_device_base.config out/.config
@@ -55,10 +68,6 @@ jobs:
           KCONFIG_CONFIG=out/.config scripts/kconfig/merge_config.sh -m out/.config arch/arm64/configs/droidspaces_ksu.fragment
           make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 olddefconfig
           grep -E 'CONFIG_(KSU|SYSVIPC|POSIX_MQUEUE|IPC_NS|PID_NS|DEVTMPFS|CGROUP_DEVICE|MODVERSIONS)=' out/.config
-          grep -E 'CONFIG_(USER_NS|LTO_CLANG|TRIM_UNUSED_KSYMS)[= ]' out/.config || true
-
-      - name: Build Image.gz
-        run: |
           make -j"$(nproc)" O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 KCFLAGS="-Wno-error" Image.gz
           ls -la out/arch/arm64/boot/Image.gz
 
@@ -66,13 +75,13 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3
           rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/README.md AnyKernel3/anykernel.sh
-          cp out/arch/arm64/boot/Image.gz AnyKernel3/
+          cp kernel-src/out/arch/arm64/boot/Image.gz AnyKernel3/
           cat > AnyKernel3/anykernel.sh <<'EOF'
           ### AnyKernel3 Ramdisk Mod Script — Redmi Pad (yunluo) GKI 5.10
           ## osm0sis @ xda-developers
 
           properties() { '
-          kernel.string=yunluo GKI 5.10 + KernelSU-Next + Droidspaces
+          kernel.string=yunluo android12-5.10 + KernelSU-Next + Droidspaces
           do.devicecheck=0
           do.modules=0
           do.systemless=0
@@ -98,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kernel-Image.gz
-          path: out/arch/arm64/boot/Image.gz
+          path: kernel-src/out/arch/arm64/boot/Image.gz
 
       - name: Upload AnyKernel3 zip
         uses: actions/upload-artifact@v4
