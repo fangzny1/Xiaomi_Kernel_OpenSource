@@ -10,6 +10,11 @@
 # KernelSU-Next (kprobe-based)
 CONFIG_KSU=y
 
+# Force the GLOBAL stack protector guard: newer clang auto-enables the
+# per-task sysreg guard (STACKPROTECTOR_PER_TASK def_bool y), which stops
+# exporting __stack_chk_guard — a symbol 139 prebuilt vendor modules import.
+# CONFIG_STACKPROTECTOR_PER_TASK is not set
+
 # --- Droidspaces core (fatal requirements) ---
 # IPC, layout preserved via Droidspaces kABI patches
 CONFIG_SYSVIPC=y
