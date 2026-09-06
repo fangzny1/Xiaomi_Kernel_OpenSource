@@ -25,10 +25,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential cpio flex libssl-dev zip wget curl git
           # full-LTO vmlinux link needs more memory than the runner has RAM
-          sudo fallocate -l 16G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          sudo fallocate -l 16G /mnt/ksu-swapfile
+          sudo chmod 600 /mnt/ksu-swapfile
+          sudo mkswap /mnt/ksu-swapfile
+          sudo swapon /mnt/ksu-swapfile
           free -h
 
       - name: Clone AOSP common kernel
