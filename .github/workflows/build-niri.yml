@@ -1,0 +1,36 @@
+name: Build niri (aarch64)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cargo clang libclang-dev libgbm-dev \
+            libegl-dev libxkbcommon-dev libwayland-dev libpango1.0-dev libcairo2-dev \
+            libinput-dev libsystemd-dev libseat-dev libudev-dev libdisplay-info-dev \
+            libpipewire-dev libgrove-dev jq curl pkg-config
+
+      - name: Clone latest niri release
+        run: |
+          TAG=$(curl -s https://api.github.com/repos/YaLTeu/niri/releases/latest | jq -r .tag_name)
+          echo "latest tag: $TAG"
+          git clone --depth 1 --branch "$TAG" https://github.com/YaLTeu/niri.git
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Build (release)
+        working-directory: niri
+        run: |
+          cargo build --release 2>&1 | tail -5
+          ls -la target/release/niri
+
+      - name: Upload niri binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: niri-aarch64-${{ env.TAG }}
+          path: niri/target/release/niri
