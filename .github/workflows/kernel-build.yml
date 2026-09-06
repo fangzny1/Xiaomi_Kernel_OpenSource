@@ -49,14 +49,14 @@ jobs:
 
       - name: Configure kernel (gki_defconfig + fragment)
         run: |
-          make -j"$(nproc)" O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 gki_defconfig
+          make -j"$(nproc)" O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 gki_defconfig
           KCONFIG_CONFIG=out/.config scripts/kconfig/merge_config.sh -m out/.config arch/arm64/configs/droidspaces_ksu.fragment
-          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 olddefconfig
+          make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 olddefconfig
           grep -E 'CONFIG_(KSU|SYSVIPC|POSIX_MQUEUE|IPC_NS|PID_NS|USER_NS|CGROUP_DEVICE|ANDROID|ANDROID_KABI_RESERVE)=' out/.config
 
       - name: Build Image.gz
         run: |
-          make -j"$(nproc)" O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 Image.gz
+          make -j"$(nproc)" O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 Image.gz
           ls -la out/arch/arm64/boot/Image.gz
 
       - name: Package AnyKernel3 flashable zip
