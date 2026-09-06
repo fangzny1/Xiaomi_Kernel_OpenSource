@@ -40,3 +40,7 @@ CONFIG_TMPFS_XATTR=y
 
 # KernelSU-Next
 CONFIG_KSU=y
+
+# Disable thinLTO: full-GKI LTO link OOMs on 16 GB CI runners,
+# and LTO does not affect the kernel ABI
+CONFIG_LTO_NONE=y
