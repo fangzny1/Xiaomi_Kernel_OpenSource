@@ -1,0 +1,100 @@
+name: Build yunluo kernel (KernelSU-Next + Droidspaces)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [yunluo-s-oss-ksu-droidspaces]
+
+env:
+  KSU_NEXT_VERSION: v3.3.0
+  ARCH: arm64
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential cpio flex libssl-dev zip wget curl
+
+      - name: Set up Neutron Clang
+        run: |
+          mkdir -p "$HOME/neutron-clang" && cd "$HOME/neutron-clang"
+          wget -qO antman https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman
+          chmod +x antman
+          ./antman -S=latest
+          echo "$HOME/neutron-clang/bin" >> "$GITHUB_PATH"
+
+      - name: Integrate KernelSU-Next
+        run: |
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/${KSU_NEXT_VERSION}/kernel/setup.sh" | bash -s "${KSU_NEXT_VERSION}"
+
+      - name: Apply Droidspaces kABI patches
+        run: |
+          BASE="https://raw.githubusercontent.com/ravindu644/Droidspaces-OSS/dev/Documentation/resources/kernel-patches/GKI/below-kernel-6.12"
+          curl -fL -o sysvipc.patch "${BASE}/001.GKI-below-6.12-fix_sysvipc_kabi_6_7_8.patch"
+          curl -fL -o posix_mqueue.patch "${BASE}/002.5.10_or_lower_use_android_abi_padding_for_posix_mqueue.patch"
+          patch -p1 < sysvipc.patch
+          patch -p1 < posix_mqueue.patch
+
+      - name: Configure kernel (gki_defconfig + fragment)
+        run: |
+          make -j"$(nproc)" O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 gki_defconfig
+          KCONFIG_CONFIG=out/.config scripts/kconfig/merge_config.sh -m arch/arm64/configs/droidspaces_ksu.fragment
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 olddefconfig
+          grep -E 'CONFIG_(KSU|SYSVIPC|POSIX_MQUEUE|IPC_NS|PID_NS|USER_NS|CGROUP_DEVICE)=' out/.config
+
+      - name: Build Image.gz
+        run: |
+          set -o pipefail
+          make -j"$(nproc)" O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 Image.gz 2>&1 | tail -n 60
+          ls -la out/arch/arm64/boot/Image.gz
+
+      - name: Package AnyKernel3 flashable zip
+        run: |
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3
+          rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/README.md AnyKernel3/anykernel.sh
+          cp out/arch/arm64/boot/Image.gz AnyKernel3/
+          cat > AnyKernel3/anykernel.sh <<'EOF'
+          ### AnyKernel3 Ramdisk Mod Script — Redmi Pad (yunluo) GKI 5.10
+          ## osm0sis @ xda-developers
+
+          properties() { '
+          kernel.string=yunluo GKI 5.10 + KernelSU-Next + Droidspaces
+          do.devicecheck=0
+          do.modules=0
+          do.systemless=0
+          do.cleanup=0
+          do.cleanuponabort=0
+          '; }
+
+          # boot shell variables — kernel-only, ramdisk untouched
+          BLOCK=auto;
+          IS_SLOT_DEVICE=auto;
+          RAMDISK_COMPRESSION=auto;
+          PATCH_VBMETA_FLAG=auto;
+
+          . tools/ak3-core.sh;
+
+          split_boot;  # skip ramdisk unpack
+          flash_boot;  # skip ramdisk repack
+          EOF
+          cd AnyKernel3
+          zip -r9 "../AnyKernel3-yunluo-KSU-Next-${KSU_NEXT_VERSION}-$(date +%Y%m%d).zip" . -x '.git*'
+
+      - name: Upload boot kernel Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-Image.gz
+          path: out/arch/arm64/boot/Image.gz
+
+      - name: Upload AnyKernel3 zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnyKernel3-flashable-zip
+          path: AnyKernel3-*.zip
