@@ -1,19 +1,18 @@
-# Kernel configuration fragment for Droidspaces (https://github.com/ravindu644/Droidspaces-OSS)
-# and KernelSU-Next (https://github.com/KernelSU-Next/KernelSU-Next) support.
-# Merge on top of gki_defconfig; requires the Droidspaces kABI patches for
-# SYSVIPC / POSIX_MQUEUE on 5.10 GKI kernels.
+# Droidspaces (https://github.com/ravindu644/Droidspaces-OSS) + KernelSU-Next options.
+# Merge on top of yunluo_device_base.config (the config of the running kernel that
+# is proven compatible with the device's vendor modules), NOT plain gki_defconfig.
+# Requires the Droidspaces kABI patches for SYSVIPC / POSIX_MQUEUE (task_struct
+# layout is preserved via ANDROID_KABI_RESERVE(7,8) -> sysvshm).
 
-# IPC
+# IPC (kABI-safe with the Droidspaces patches applied)
 CONFIG_SYSVIPC=y
 CONFIG_POSIX_MQUEUE=y
 
 # Namespaces
 CONFIG_IPC_NS=y
 CONFIG_PID_NS=y
-CONFIG_NET_NS=y
-CONFIG_USER_NS=y
 
-# HW access
+# devtmpfs (Droidspaces /dev setup; no ABI impact)
 CONFIG_DEVTMPFS=y
 
 # Seccomp
@@ -24,7 +23,7 @@ CONFIG_SECCOMP_FILTER=y
 CONFIG_CGROUP_DEVICE=y
 CONFIG_CGROUP_PIDS=y
 
-# Networking (NAT mode / UFW / Fail2ban)
+# Networking (NAT mode / UFW / Fail2ban) — config-only, no ABI impact
 CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
 CONFIG_NETFILTER_XT_TARGET_REJECT=y
 CONFIG_NETFILTER_XT_TARGET_LOG=y
@@ -34,13 +33,21 @@ CONFIG_IP_SET_HASH_IP=y
 CONFIG_IP_SET_HASH_NET=y
 CONFIG_NETFILTER_XT_SET=y
 
-# tmpfs xattr / posix acl (NixOS support)
+# tmpfs xattr / posix acl (NixOS support) — no ABI impact
 CONFIG_TMPFS_POSIX_ACL=y
 CONFIG_TMPFS_XATTR=y
 
 # KernelSU-Next
 CONFIG_KSU=y
 
-# Disable thinLTO: full-GKI LTO link OOMs on 16 GB CI runners,
-# and LTO does not affect the kernel ABI
+# Build pragmatics — no ABI impact
+# full-GKI LTO link OOMs on 16 GB CI runners; LTO does not affect module CRCs
 CONFIG_LTO_NONE=y
+# device base config points UNUSED_KSYMS_WHITELIST at a path that does not exist here
+# CONFIG_TRIM_UNUSED_KSYMS is not set
+
+# Intentionally NOT enabled:
+#   CONFIG_USER_NS — adds cred->user_ns, changing struct cred layout and breaking
+#   vendor module CRCs. Optional per Droidspaces docs (docker-in-container fix only).
+#   CONFIG_MTK_MKP — MediaTek Kernel Protection panics on KSU SELinux handling;
+#   leaving it off keeps the vendor mkp.ko from loading (no kernel support symbols).
