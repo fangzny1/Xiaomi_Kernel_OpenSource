@@ -31,6 +31,7 @@
 
 #if __has_feature(address_sanitizer) || __has_feature(hwaddress_sanitizer)
 /* Emulate GCC's __SANITIZE_ADDRESS__ flag */
+#undef __SANITIZE_ADDRESS__
 #define __SANITIZE_ADDRESS__
 #define __no_sanitize_address \
 		__attribute__((no_sanitize("address", "hwaddress")))
@@ -40,6 +41,7 @@
 
 #if __has_feature(thread_sanitizer)
 /* emulate gcc's __SANITIZE_THREAD__ flag */
+#undef __SANITIZE_THREAD__
 #define __SANITIZE_THREAD__
 #define __no_sanitize_thread \
 		__attribute__((no_sanitize("thread")))
