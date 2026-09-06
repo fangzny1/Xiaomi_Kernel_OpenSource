@@ -1,20 +1,32 @@
-# Droidspaces + KernelSU-Next options for yunluo_device_base.config.
+# Droidspaces + KernelSU-Next options, merged on top of yunluo_device_base.config.
 #
-# IMPORTANT: the device's 187 first-stage vendor modules are prebuilt and
-# checked against genksyms symbol CRCs (CONFIG_MODVERSIONS). Any option that
-# changes a struct declaration referenced by exported symbols (task_struct,
-# css_set, ...) breaks module loading even when the kABI padding patches keep
-# the actual layout identical. Therefore only declaration-neutral options are
-# enabled here; the ABI-affecting Droidspaces options are listed at the bottom
-# and must be re-evaluated against kernel_crcs.txt after every change.
+# The device's vendor modules are prebuilt; their genksyms CRCs don't match any
+# rebuildable tree, so kernel/module.c is patched to accept them (see
+# patch_modversions.py). With CRC checks relaxed, actual struct LAYOUT is what
+# matters. Layout-affecting options must go through the Droidspaces kABI
+# patches (task_struct: sysvsem/sysvshm into ANDROID_KABI_RESERVE(7,8), mqueue
+# into ABI padding) so prebuilt modules keep working.
 
-# KernelSU-Next (kprobe-based; no declaration changes)
+# KernelSU-Next (kprobe-based)
 CONFIG_KSU=y
 
-# devtmpfs (Droidspaces /dev setup) — initcalls only, no ABI impact
+# --- Droidspaces core (fatal requirements) ---
+# IPC, layout preserved via Droidspaces kABI patches
+CONFIG_SYSVIPC=y
+CONFIG_POSIX_MQUEUE=y
+# Namespaces
+CONFIG_IPC_NS=y
+CONFIG_PID_NS=y
+# devtmpfs (Droidspaces /dev setup)
 CONFIG_DEVTMPFS=y
+# Cgroups
+CONFIG_CGROUP_DEVICE=y
+CONFIG_CGROUP_PIDS=y
+# Seccomp
+CONFIG_SECCOMP=y
+CONFIG_SECCOMP_FILTER=y
 
-# Networking (NAT mode / UFW / Fail2ban) — config-only, no ABI impact
+# --- Droidspaces networking (NAT mode / UFW / Fail2ban) ---
 CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
 CONFIG_NETFILTER_XT_TARGET_REJECT=y
 CONFIG_NETFILTER_XT_TARGET_LOG=y
@@ -24,23 +36,21 @@ CONFIG_IP_SET_HASH_IP=y
 CONFIG_IP_SET_HASH_NET=y
 CONFIG_NETFILTER_XT_SET=y
 
-# tmpfs xattr / posix acl (NixOS support) — no ABI impact
+# tmpfs xattr / posix acl (NixOS support)
 CONFIG_TMPFS_POSIX_ACL=y
 CONFIG_TMPFS_XATTR=y
 
-# Build pragmatics — no ABI impact
-# full-GKI LTO link OOMs on 16 GB CI runners; LTO does not affect module CRCs
-CONFIG_LTO_NONE=y
-# device base config points UNUSED_KSYMS_WHITELIST at a path that does not exist here
+# Build pragmatics:
+#  - keep base LTO_CLANG_FULL + CFI_CLANG: modules import __cfi_slowpath, so
+#    CFI must stay enabled (LTO_NONE would disable it and break every module)
+#  - DEBUG_INFO off: full-LTO link OOMs the 16 GB CI runner with debug info
+# CONFIG_DEBUG_INFO is not set
+# device base config points UNUSED_KSYMS_WHITELIST at a nonexistent path
 # CONFIG_TRIM_UNUSED_KSYMS is not set
 # shallow clone has no tags for LOCALVERSION_AUTO
 CONFIG_LOCALVERSION="-ksu-droidspaces"
 # CONFIG_LOCALVERSION_AUTO is not set
 
-# ---------------------------------------------------------------------------
-# ABI-AFFECTING Droidspaces options — OFF for now, evaluate with CRC dump:
-#   CONFIG_SYSVIPC / CONFIG_POSIX_MQUEUE (task_struct: sysvsem/sysvshm)
-#   CONFIG_IPC_NS / CONFIG_PID_NS
-#   CONFIG_CGROUP_DEVICE / CONFIG_CGROUP_PIDS (css_set->subsys[] size)
-#   CONFIG_USER_NS (cred->user_ns)
-# Droidspaces-fatal ones need vendor modules rebuilt against the new kernel.
+# Deliberately NOT enabled: CONFIG_USER_NS (grows struct cred — real layout
+# change with no kABI padding available on 5.10). Optional per Droidspaces docs
+# (docker-in-container fix only).

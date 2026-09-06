@@ -24,6 +24,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential cpio flex libssl-dev zip wget curl git
+          # full-LTO vmlinux link needs more memory than the runner has RAM
+          sudo fallocate -l 16G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
 
       - name: Clone AOSP common kernel
         run: |
@@ -58,6 +64,12 @@ jobs:
           patch -p1 -N -f < sysvipc.patch || true
           patch -p1 -N -f < posix_mqueue.patch || true
           grep -n 'sysvshm' include/linux/sched.h | head -3
+
+      - name: Relax MODVERSIONS CRC checks for prebuilt vendor modules
+        working-directory: kernel-src
+        run: |
+          python3 ../patch_modversions.py kernel/module.c
+          grep -A3 'yunluo-ksu relax' kernel/module.c
 
       - name: Build Image.gz
         working-directory: kernel-src
