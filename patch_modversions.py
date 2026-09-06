@@ -29,3 +29,20 @@ patched = src[:j + 1] + (
 # check_modstruct_version routes through check_version, so it is covered.
 open(path, 'w').write(patched)
 print('patched', path)
+
+# arch/arm64: force the global stack-protector guard. STACKPROTECTOR_PER_TASK
+# is def_bool y (no prompt, so a config fragment cannot disable it) and newer
+# clang meets CC_HAVE_STACKPROTECTOR_SYSREG, which stops exporting
+# __stack_chk_guard — imported by 139 prebuilt vendor modules.
+kpath = 'arch/arm64/Kconfig'
+ksrc = open(kpath).read()
+old = 'config STACKPROTECTOR_PER_TASK\n\tdef_bool y'
+new = 'config STACKPROTECTOR_PER_TASK\n\tdef_bool n'
+if old in ksrc:
+    open(kpath, 'w').write(ksrc.replace(old, new))
+    print('patched', kpath)
+elif new in ksrc:
+    print(kpath, 'already patched')
+else:
+    print('WARNING: STACKPROTECTOR_PER_TASK pattern not found in', kpath)
+    sys.exit(1)
