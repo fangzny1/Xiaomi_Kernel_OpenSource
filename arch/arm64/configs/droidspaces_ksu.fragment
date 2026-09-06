@@ -1,27 +1,18 @@
-# Droidspaces (https://github.com/ravindu644/Droidspaces-OSS) + KernelSU-Next options.
-# Merge on top of yunluo_device_base.config (the config of the running kernel that
-# is proven compatible with the device's vendor modules), NOT plain gki_defconfig.
-# Requires the Droidspaces kABI patches for SYSVIPC / POSIX_MQUEUE (task_struct
-# layout is preserved via ANDROID_KABI_RESERVE(7,8) -> sysvshm).
+# Droidspaces + KernelSU-Next options for yunluo_device_base.config.
+#
+# IMPORTANT: the device's 187 first-stage vendor modules are prebuilt and
+# checked against genksyms symbol CRCs (CONFIG_MODVERSIONS). Any option that
+# changes a struct declaration referenced by exported symbols (task_struct,
+# css_set, ...) breaks module loading even when the kABI padding patches keep
+# the actual layout identical. Therefore only declaration-neutral options are
+# enabled here; the ABI-affecting Droidspaces options are listed at the bottom
+# and must be re-evaluated against kernel_crcs.txt after every change.
 
-# IPC (kABI-safe with the Droidspaces patches applied)
-CONFIG_SYSVIPC=y
-CONFIG_POSIX_MQUEUE=y
+# KernelSU-Next (kprobe-based; no declaration changes)
+CONFIG_KSU=y
 
-# Namespaces
-CONFIG_IPC_NS=y
-CONFIG_PID_NS=y
-
-# devtmpfs (Droidspaces /dev setup; no ABI impact)
+# devtmpfs (Droidspaces /dev setup) — initcalls only, no ABI impact
 CONFIG_DEVTMPFS=y
-
-# Seccomp
-CONFIG_SECCOMP=y
-CONFIG_SECCOMP_FILTER=y
-
-# Cgroups
-CONFIG_CGROUP_DEVICE=y
-CONFIG_CGROUP_PIDS=y
 
 # Networking (NAT mode / UFW / Fail2ban) — config-only, no ABI impact
 CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
@@ -37,9 +28,6 @@ CONFIG_NETFILTER_XT_SET=y
 CONFIG_TMPFS_POSIX_ACL=y
 CONFIG_TMPFS_XATTR=y
 
-# KernelSU-Next
-CONFIG_KSU=y
-
 # Build pragmatics — no ABI impact
 # full-GKI LTO link OOMs on 16 GB CI runners; LTO does not affect module CRCs
 CONFIG_LTO_NONE=y
@@ -49,8 +37,10 @@ CONFIG_LTO_NONE=y
 CONFIG_LOCALVERSION="-ksu-droidspaces"
 # CONFIG_LOCALVERSION_AUTO is not set
 
-# Intentionally NOT enabled:
-#   CONFIG_USER_NS — adds cred->user_ns, changing struct cred layout and breaking
-#   vendor module CRCs. Optional per Droidspaces docs (docker-in-container fix only).
-#   CONFIG_MTK_MKP — MediaTek Kernel Protection panics on KSU SELinux handling;
-#   leaving it off keeps the vendor mkp.ko from loading (no kernel support symbols).
+# ---------------------------------------------------------------------------
+# ABI-AFFECTING Droidspaces options — OFF for now, evaluate with CRC dump:
+#   CONFIG_SYSVIPC / CONFIG_POSIX_MQUEUE (task_struct: sysvsem/sysvshm)
+#   CONFIG_IPC_NS / CONFIG_PID_NS
+#   CONFIG_CGROUP_DEVICE / CONFIG_CGROUP_PIDS (css_set->subsys[] size)
+#   CONFIG_USER_NS (cred->user_ns)
+# Droidspaces-fatal ones need vendor modules rebuilt against the new kernel.
