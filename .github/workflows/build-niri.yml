@@ -18,9 +18,9 @@ jobs:
 
       - name: Clone latest niri release
         run: |
-          TAG=$(curl -s https://api.github.com/repos/YaLTeu/niri/releases/latest | jq -r .tag_name)
+          TAG=$(curl -s https://api.github.com/repos/niri-wm/niri/releases/latest | jq -r .tag_name)
           echo "latest tag: $TAG"
-          git clone --depth 1 --branch "$TAG" https://github.com/YaLTeu/niri.git
+          git clone --depth 1 --branch "$TAG" https://github.com/niri-wm/niri.git
           echo "TAG=$TAG" >> "$GITHUB_ENV"
 
       - name: Build (release)
