@@ -71,18 +71,23 @@ jobs:
           make -j"$(nproc)" O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 KCFLAGS="-Wno-error" Image.gz
           ls -la out/arch/arm64/boot/Image.gz
 
-      - name: Dump kernel symbol CRCs
+      - name: Dump kernel symbol CRCs and verify against device modules
         working-directory: kernel-src
         run: |
-          nm out/vmlinux | grep ' __crc_' | awk '{print $2, $1}' | sed 's/__crc_//' > kernel_crcs.txt
+          nm out/vmlinux | grep ' __crc_' | awk '{print $3, $1}' > kernel_crcs.txt
           wc -l kernel_crcs.txt
           grep -w module_layout kernel_crcs.txt || echo "module_layout CRC not found!"
+          cp ../check_crcs.py .
+          cp ../module_crcs.json .
+          python3 check_crcs.py | tee crc_verdict.txt
 
       - name: Upload kernel symbol CRCs
         uses: actions/upload-artifact@v4
         with:
           name: kernel-crcs
-          path: kernel-src/kernel_crcs.txt
+          path: |
+            kernel-src/kernel_crcs.txt
+            kernel-src/crc_verdict.txt
 
       - name: Package AnyKernel3 flashable zip
         run: |
