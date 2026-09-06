@@ -56,8 +56,7 @@ jobs:
 
       - name: Build Image.gz
         run: |
-          set -o pipefail
-          make -j"$(nproc)" O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 Image.gz 2>&1 | tail -n 60
+          make -j"$(nproc)" O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 Image.gz
           ls -la out/arch/arm64/boot/Image.gz
 
       - name: Package AnyKernel3 flashable zip
