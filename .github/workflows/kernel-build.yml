@@ -42,12 +42,17 @@ jobs:
           patch -p1 < sysvipc.patch
           patch -p1 < posix_mqueue.patch
 
+      - name: Fix kgdb brk immediate for newer Clang
+        run: |
+          sed -i 's/"I" (KGDB_COMPILED_DBG_BRK_IMM)/"n" (KGDB_COMPILED_DBG_BRK_IMM)/' arch/arm64/include/asm/kgdb.h
+          grep -n 'KGDB_COMPILED_DBG_BRK_IMM' arch/arm64/include/asm/kgdb.h
+
       - name: Configure kernel (gki_defconfig + fragment)
         run: |
           make -j"$(nproc)" O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 gki_defconfig
-          KCONFIG_CONFIG=out/.config scripts/kconfig/merge_config.sh -m arch/arm64/configs/droidspaces_ksu.fragment
+          KCONFIG_CONFIG=out/.config scripts/kconfig/merge_config.sh -m out/.config arch/arm64/configs/droidspaces_ksu.fragment
           make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 olddefconfig
-          grep -E 'CONFIG_(KSU|SYSVIPC|POSIX_MQUEUE|IPC_NS|PID_NS|USER_NS|CGROUP_DEVICE)=' out/.config
+          grep -E 'CONFIG_(KSU|SYSVIPC|POSIX_MQUEUE|IPC_NS|PID_NS|USER_NS|CGROUP_DEVICE|ANDROID|ANDROID_KABI_RESERVE)=' out/.config
 
       - name: Build Image.gz
         run: |
